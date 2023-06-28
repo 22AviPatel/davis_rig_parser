@@ -41,7 +41,7 @@ def ranges(nums):
     edges = iter(nums[:1] + sum(gaps, []) + nums[-1:])
     return list(zip(edges, edges))
 
-def MedMS8_reader_stone(file_name, file_check, min_latency=100, min_ILI_possible=75, filter_false_licks=True):
+def MedMS8_reader_stone(file_name, file_check, min_latency=100, min_ILI=75, filter_false_licks=True):
     """
     Input: File Name (with directory) from MedAssociates Davis Rig (e.g. .ms8.text)
     
@@ -61,7 +61,7 @@ def MedMS8_reader_stone(file_name, file_check, min_latency=100, min_ILI_possible
         be that the "first lick" is actually the shutter opening. 
         So, I will add up the first ili to the latency and make that the true latency, and
         then make the 2nd ili the true first ili.
-        Then flat out delete all ilis that are lower than the min_ili_possible
+        Then flat out delete all ilis that are lower than the min_ILI
     
 
     """
@@ -144,9 +144,9 @@ def MedMS8_reader_stone(file_name, file_check, min_latency=100, min_ILI_possible
                             cuts +=1
                             if cuts >5: #failsafe so the loop doesn't go infinite, arbitrarily set at 5
                                 break
-                        #then, set all ILIs under min_ILI_possible to 0 to be deleted later
+                        #then, set all ILIs under min_ILI to 0 to be deleted later
                         for j in range(len(row[1:])):
-                            if row[j] < min_ILI_possible and row[j] != 0:
+                            if row[j] < min_ILI and row[j] != 0:
                                 row[j] = 0
                                 cuts+=1
                             
@@ -332,28 +332,17 @@ def LickMicroStructure_stone(dFrame_lick,latency_array, bout_crit):
 # detail_check = "No"
 
 
-def create_df(dir_name=None, detail_check=None, detail_name=None, bout_pause=500, min_latency=100):
-    if dir_name==None:
+def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, min_ILI=75, save_df=True):
+    if dir_name=="ask":
         dir_name = easygui.diropenbox()
-
-    if detail_name != None: #if the user passed through a detail name, they have
-    #they are implicitly saying yes the detail check
-        detail_check ='Yes'
-
-    if detail_check ==None:
-        msg   = "Do you have a datasheet with animal details?" 
-        detail_check = easygui.buttonbox(msg,choices = ["Yes","No"])
- 
     os.chdir(dir_name)
-
-    if detail_check == 'Yes':
-        if detail_name==None:
-            # Ask user for experimental data sheet if they want to include additional details
-            detail_name = easygui.diropenbox(msg='Where is the ".txt" file?')
-        file_check = glob.glob(detail_name + '/*.txt')
+    if info_name == 'ask':
+        info_name = easygui.diropenbox(msg='Do you have a ".txt" supplementary info file? (If none click cancel)')
+    
+    if info_name != None:
+        file_check = glob.glob(info_name + '/*.txt')
     else:
         file_check = []
-    
         
     #Initiate a list to store individual file dataframes                
     merged_data = []   
@@ -366,7 +355,7 @@ def create_df(dir_name=None, detail_check=None, detail_name=None, bout_pause=500
             file_name = dir_name+'/'+med_name
         
             #Run functions to extract trial data
-            out_put_dict = MedMS8_reader_stone(file_name, file_check, min_latency)
+            out_put_dict = MedMS8_reader_stone(file_name, file_check, min_latency, min_ILI=min_ILI)
             dfFull = LickMicroStructure_stone(out_put_dict['LickDF'], out_put_dict['LatencyMatrix'], bout_pause)
     
             #Merge the data into a list
@@ -412,7 +401,7 @@ def create_df(dir_name=None, detail_check=None, detail_name=None, bout_pause=500
     
     #Save dataframe for later use/plotting/analyses
     #timestamped with date
-    df.to_pickle(dir_name+'/%s_grouped_dframe.df' %(date.today().strftime("%d_%m_%Y")))
-    
+    if save_df==True:
+        df.to_pickle(dir_name+'/%s_grouped_dframe.df' %(date.today().strftime("%d_%m_%Y")))
 
     return df

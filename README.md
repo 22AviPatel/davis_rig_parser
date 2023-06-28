@@ -28,35 +28,81 @@ If you're working in a Jupyter notebook, you can run the same command in a code 
 
 !pip install davis_rig_parser
 ```
-You're now ready to use davis_rig_parser in your projects!
+You're now ready to use davis_rig_parser to create dataframes!
 
-## Usage
+## Creating The Dataframe
+
+### Setting Up the Text Files
+
+Make sure you have a folder where the only .txt files are the Med Associates gustometer standardized output for the Davis Rig, you should put all .txt files you want to be turned into a dataframe in the same folder for ease. If you have a .txt file with supplemental animal info, put those in a separate folder. You should have two different folders. They don't have to be stored in adjacent folders, just different folders.
+
+### Running the code
+
+You can create the dataframe as a variable in your code and/or save it as a .df file. The first 2 examples will save a .df file in the same directory chosen (chosen in the pop up or passed as dir_name). The title of the .df file will be '/chosen_directory/27_06_2023_grouped_dframe.df' where 27_06_2023 is the current date in day_month_year format. 
+```python
+import davis_rig_parser
+
+#Example 1
+#just save a .df file
+davis_rig_parser.create_df()
+
+#Example 2
+#save as a .df file and as a variable called "pandas_df"
+pandas_df = davis_rig_parser.create_df()
+
+#Example 3
+#only save as variable called "pandas_df", no .df file will be created
+pandas_df = davis_rig_parser.create_df(save_df=False)
+```
+
+All of the above examples will use pop up menus to choose the directory. If you don't want to click through them everytime, you can pass the directories to both folders (detailed in the Setting Up the Text Files section) in the create_df() function. 
+
+```python
+import davis_rig_parser 
+
+#Example 4
+#passing your directories as strings avoids having to select the directories manually.
+pandas_dataframe = davis_rig_parser.create_df(
+    dir_name = "/your_path_to_the/Data", 
+    info_name = '/your_path_to_the/Animal_Info') # the supplementary animal info.
+
+
+#Example 5
+# If you don't have supplementary animal info, and don't want to see the pop-up every time, pass None into info_name.
+pandas_dataframe = davis_rig_parser.create_df(
+    dir_name = "/your_path_to_the/Data", 
+    info_name = None) # pass None here
+```
+### Changing Parameters
+
+The davis_rig_parser does a few things to the data to account for the possible artifacts created by the Davis Rig. Changing these parameters is optional.
+
+#### Bout Size
+
+If you would like to change the bout size you are using change the bout_pause parameter. It is 300 by default. 
 
 ```python
 import davis_rig_parser
 
-
-# This just creates a .df file in the same folder as the text folder selected in the first "Choose Directory" pop-up.
-# The created .df file will be called '/chosen_directory/27_06_2023_grouped_dframe.df' 
-# where '27_06_2023_' is the current date in the form day_month_year.
-davis_rig_parser.create_df()
-
-# Returns a pandas dataframe variable & creates a .df file in the folder same as the text folder.
-pandas_dataframe = davis_rig_parser.create_df()
-
-# Also returns a pandas dataframe + creates a .df file, but passing these variables avoids having to select
-# the directories manually.
-pandas_dataframe = davis_rig_parser.create_df(
-    dir_name = "/your_path_to_the/Data", 
-    detail_name = '/your_path_to_the/Animal_Info') # the supplementary animal info.
-
-# If you don't have supplementary animal info, and don't want to see the gui pop-up every time, pass None into detail_name.
-pandas_dataframe = davis_rig_parser.create_df(
-    dir_name = "/your_path_to_the/Data", 
-    detail_name = None) # pass None here
-
+davis_rig_parser.create_df(bout_pause=300)
 ```
+#### Minimum Latency
 
+The Davis Rig will occasionally record false licks when the shutter opens. If the latency of the recorded 'first lick' is less than min_ILI, this 'first lick' is considered shutter openning rather than a true lick. The 1st, 2nd, 3rd...etc licks are summed until the latency is greater than 100ms by default. The number of summed ILIs is deleted from the Licks column in the .txt file. 
+```python
+import davis_rig_parser
+
+davis_rig_parser.create_df(min_latency=100)
+```
+Possible false licks created by the shutter closing are not accounted for. 
+#### Minimum Possible ILI
+
+The parser will delete all interlick intervals (ILIs) under the min_ILI threshold. These small ILIs are not possible for a rat tounge to move faster than ~75ms. Their source is unknown for certain, but they might be created by the animals bumping into the spout. It is 75 by default. The number of deleted ILIs is deleted from the Licks column in the .txt file. 
+```python
+import davis_rig_parser
+
+davis_rig_parser.create_df(min_ILI=75)
+```
 ## License
 
 This project is licensed under the terms of the GNU General Public License v3.0.
