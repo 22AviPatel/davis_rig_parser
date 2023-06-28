@@ -67,5 +67,15 @@ For more details, please check the [LICENSE](./LICENSE) file in the repository, 
 
 ## Credits
 
-This module was originally created by Dr. Bradly T. Stone. While he is no longer involved with the project, his contributions were vital to its development.
+Published by:
+Avi Patel
 
+Authors:
+Avi Patel
+Dr. Bradly T. Stone
+
+Maintainers:
+Avi Patel (avipnea@gmail.com)
+Daniel Svedberg (dan.ake.svedberg@gmail.com)
+
+last updated: 06/28/2023
