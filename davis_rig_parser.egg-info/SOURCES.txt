@@ -1,0 +1,9 @@
+README.md
+setup.py
+davis_rig_parser/BAT_reader1.py
+davis_rig_parser/__init__.py
+davis_rig_parser.egg-info/PKG-INFO
+davis_rig_parser.egg-info/SOURCES.txt
+davis_rig_parser.egg-info/dependency_links.txt
+davis_rig_parser.egg-info/requires.txt
+davis_rig_parser.egg-info/top_level.txt
