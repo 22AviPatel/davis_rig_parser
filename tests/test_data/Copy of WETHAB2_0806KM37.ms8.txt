@@ -1,0 +1,13 @@
+C:\ProgramData\MED Associates\Davis Rig\DavisDat\WETHAB2_0806KM37.ms8.txt
+Version #, 7.24
+System ID, 1
+Start Date, 2020/08/06
+Start Time, 10:09:59
+Animal ID, KM37
+Condition, 
+Max Wait for first Lick is, 1800
+Max Number Presentations, 1
+PRESENTATION,TUBE,CONCENTRATION,SOLUTION,  IPI  , LENGTH, LICKS, Latency, Open Error, Close Error
+   1,   1,         ,       WATER,     60,   1800,     0, 1800000,       0,       0
+
+1

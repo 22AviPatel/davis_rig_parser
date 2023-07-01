@@ -1,0 +1,10 @@
+7.24
+C:\ProgramData\MED Associates\Davis Rig\DavisDat\WETHAB2_0806KM37.ms8
+08-06-2020
+KM37
+
+Max Wait for first Lick is,1800
+  1 ,  1 
+PRESENTATION,TUBE,      SOLUTION     ,  IPI  , LENGTH, LICKS
+   1,   1,,    WATER,     60,   1800,     0
+
