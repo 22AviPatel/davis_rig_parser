@@ -34,25 +34,25 @@ You're now ready to use davis_rig_parser to create dataframes!
 
 ### Setting Up the Text Files
 
-Make sure you have a folder where the only .txt files are the Med Associates gustometer standardized output for the Davis Rig, you should put all .txt files you want to be turned into a dataframe in the same folder for ease. If you have a .txt file with supplemental animal info, put those in a separate folder. You should have two different folders. They don't have to be stored in adjacent folders, just different folders.
+Make sure you have a folder where the only .txt files are the Med Associates gustometer standardized output for the Davis Rig, you should put all .txt files you want to be turned into a dataframe in the same folder for ease. If you have a .txt files with supplemental animal info, put those in a separate folder. You should have two different folders. The davis rig output .txt files and the animal info .txt files don't have to be stored in adjacent folders, just different folders.
 
 ### Running the code
 
 You can create the dataframe as a variable in your code and/or save it as a .df file. The first 2 examples will save a .df file in the same directory chosen (chosen in the pop up or passed as dir_name). The title of the .df file will be '/chosen_directory/27_06_2023_grouped_dframe.df' where 27_06_2023 is the current date in day_month_year format. 
 ```python
-import davis_rig_parser
+import davis_rig_parser as drp
 
 #Example 1
 #just save a .df file
-davis_rig_parser.create_df()
+drp.create_df()
 
 #Example 2
 #save as a .df file and as a variable called "pandas_df"
-pandas_df = davis_rig_parser.create_df()
+pandas_df = drp.create_df()
 
 #Example 3
 #only save as variable called "pandas_df", no .df file will be created
-pandas_df = davis_rig_parser.create_df(save_df=False)
+pandas_df = drp.create_df(save_df=False)
 ```
 
 All of the above examples will use pop up menus to choose the directory. If you don't want to click through them everytime, you can pass the directories to both folders (detailed in the Setting Up the Text Files section) in the create_df() function. 
@@ -62,14 +62,14 @@ import davis_rig_parser
 
 #Example 4
 #passing your directories as strings avoids having to select the directories manually.
-pandas_dataframe = davis_rig_parser.create_df(
+pandas_dataframe = drp.create_df(
     dir_name = "/your_path_to_the/Data", 
     info_name = '/your_path_to_the/Animal_Info') # the supplementary animal info.
 
 
 #Example 5
 # If you don't have supplementary animal info, and don't want to see the pop-up every time, pass None into info_name.
-pandas_dataframe = davis_rig_parser.create_df(
+pandas_dataframe = drp.create_df(
     dir_name = "/your_path_to_the/Data", 
     info_name = None) # pass None here
 ```
@@ -82,26 +82,26 @@ The davis_rig_parser does a few things to the data to account for the possible a
 If you would like to change the bout size you are using change the bout_pause parameter. It is 300 by default. 
 
 ```python
-import davis_rig_parser
+import davis_rig_parser as drp
 
-davis_rig_parser.create_df(bout_pause=300)
+drp.create_df(bout_pause=300)
 ```
 #### Minimum Latency
 
-The Davis Rig will occasionally record false licks when the shutter opens. If the latency of the recorded 'first lick' is less than min_ILI, this 'first lick' is considered shutter openning rather than a true lick. The 1st, 2nd, 3rd...etc licks are summed until the latency is greater than 100ms by default. The number of summed ILIs is deleted from the Licks column in the .txt file. 
+The Davis Rig will occasionally record false licks when the shutter opens. If the latency of the recorded 'first lick' is less than min_ILI, this 'first lick' is considered shutter openning rather than a true lick. The 1st, 2nd, 3rd...etc licks are summed until the latency is greater than 100ms by default. The number of summed ILIs is deleted from the Licks column in the .txt file. If you would like to keep the latency as recorded, set min_latency=0
 ```python
-import davis_rig_parser
+import davis_rig_parser as drp
 
-davis_rig_parser.create_df(min_latency=100)
+drp.create_df(min_latency=100)
 ```
 Possible false licks created by the shutter closing are not accounted for. 
 #### Minimum Possible ILI
 
-The parser will delete all interlick intervals (ILIs) under the min_ILI threshold. These small ILIs are not possible for a rat tounge to move faster than ~75ms. Their source is unknown for certain, but they might be created by the animals bumping into the spout. It is 75 by default. The number of deleted ILIs is deleted from the Licks column in the .txt file. 
+The parser will delete all interlick intervals (ILIs) under the min_ILI threshold. These small ILIs are not possible for a rat tounge to move faster than ~75ms. Their source is unknown for certain, but they might be created by the animals bumping into the spout. It is 75 by default. The number of deleted ILIs is deleted from the Licks column in the .txt file. If you would like to keep all ILIs, set min_ILI=0
 ```python
-import davis_rig_parser
+import davis_rig_parser as drp
 
-davis_rig_parser.create_df(min_ILI=75)
+drp.create_df(min_ILI=75)
 ```
 ## License
 

@@ -11,6 +11,7 @@ import davis_rig_parser as drp
 df = drp.create_df(
     dir_name = '/home/senecascott/Documents/CodeVault/davis_rig_parser/tests/test_data', 
     info_name=None, 
-    save_df=False
+    save_df=False,
+    min_latency=0
     )
 
