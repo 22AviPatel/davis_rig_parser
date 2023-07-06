@@ -2,7 +2,7 @@
 
 # Davis Rig Parser
 
-This module is for preprocessing and parsing brief access task data from the Med Associates gustometer, also known as the "Davis Rig." It ajusts the raw inputs for  some artifacts created by the Davis Rig, including false licks. 
+This module is for preprocessing and parsing brief access task data from the Med Associates gustometer, also known as the "Davis Rig." It ajusts the raw inputs for  some artifacts created by the Davis Rig, including false licks (see Changing Parameters). 
 
 ## Installation
 
