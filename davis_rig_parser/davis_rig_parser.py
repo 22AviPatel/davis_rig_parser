@@ -228,10 +228,8 @@ def MedMS8_reader_stone(file_name, file_check, min_latency=100, min_ILI=75, filt
                 
                     
                 #Add details to dataframe    
-                df.insert(loc=1, column='Notes', \
-                    value=detail_df.Notes[detail_row[:,case][0]].lower())
-                df.insert(loc=2, column='Condition', \
-                    value=detail_df.Condition[detail_row[:,case][0]].lower())
+				df.insert(loc=1, column='Notes', value=detail_df['Notes'].apply(lambda x: x.lower() if not pd.isnull(x) else x))
+				df.insert(loc=2, column='Condition', value=detail_df['Condition'].apply(lambda x: x.lower() if not pd.isnull(x) else x))
                 break
                 
     if len(file_check) == 0:
