@@ -137,13 +137,16 @@ def MedMS8_reader_stone(file_name, file_check, min_latency=100, min_ILI=75, filt
                     cutslist = []
                     for row in lat_set:
                         cuts=0
-                        while row[0] < min_latency:
-                            row[0] = row[0] + row[1]
-                            row[1:-1] = row[2:]
-                            row[-1] = 0
-                            cuts +=1
-                            if cuts >5: #failsafe so the loop doesn't go infinite, arbitrarily set at 5
-                                break
+                        if len(row) ==1:
+                            row[0] = np.array([np.nan])[0]
+                        else:
+                            while row[0] < min_latency:
+                                row[0] = row[0] + row[1]
+                                row[1:-1] = row[2:]
+                                row[-1] = 0
+                                cuts +=1
+                                if cuts >5: #failsafe so the loop doesn't go infinite, arbitrarily set at 5
+                                    break
                         #then, set all ILIs under min_ILI to 0 to be deleted later
                         for j in range(len(row[1:])):
                             if row[j] < min_ILI and row[j] != 0:
@@ -187,8 +190,8 @@ def MedMS8_reader_stone(file_name, file_check, min_latency=100, min_ILI=75, filt
 
                 #Convert specific columns to numeric
                 df["SOLUTION"] = df["SOLUTION"].str.strip()
-                df[["PRESENTATION","TUBE","CONCENTRATION","LICKS","Latency"]] = \
-                    df[["PRESENTATION","TUBE","CONCENTRATION","LICKS","Latency"]].apply(pd.to_numeric)
+                df[["PRESENTATION","TUBE","LICKS","Latency"]] = \
+                    df[["PRESENTATION","TUBE","LICKS","Latency"]].apply(pd.to_numeric)
 
                 #Add in identifier columns
                 df.insert(loc=0, column='Animal', value=Detail_Dict['Animal'])
@@ -249,15 +252,15 @@ def LickMicroStructure_stone(dFrame_lick,latency_array, bout_crit):
 #               licks to count as a bout (details in: Davis 1996 & Spector et al. 1998).
 # 
 #     Output: Appended dataframe with the licks within a bout/trial, latency to 
-#             to first lick within trial    
+#             first lick within trial
 # =============================================================================
 
-    
-
     #Find where the last lick occured in each trial
-    last_lick = list(map(lambda x: [i for i, x_ in enumerate(x) if not \
-                                    np.isnan(x_)][-1], latency_array))
-    
+    if len(latency_array) > 0 and len(latency_array[0]) > 0:
+        last_lick = list(map(lambda x: [i for i, x_ in enumerate(x) if not np.isnan(x_)][-1], latency_array))
+    else:
+        last_lick = []
+
     #Create function to search rows of matrix avoiding 'runtime error' caused by Nans
     crit_nan_search = np.frompyfunc(lambda x: (~np.isnan(x)) & (x >=bout_crit), 1, 1)
     i = 0
@@ -265,10 +268,12 @@ def LickMicroStructure_stone(dFrame_lick,latency_array, bout_crit):
     bouts = []; ILIs_win_bouts = []
     for i in range(latency_array.shape[0]):
         #Create condition if animal never licks within trial
-        if last_lick[i] == 0:
+        if latency_array.size == 0:
+            bouts.append([])
+            ILIs_win_bouts.append([])
+        elif last_lick[i] == 0:
             bouts.append(last_lick[i])
             ILIs_win_bouts.append(last_lick[i])
-            
         else:
             bout_pos = np.where(np.array(crit_nan_search(latency_array[i,:])).astype(int))
             
