@@ -32,6 +32,15 @@ def boolean_indexing(v, fillval=np.nan):
     mask = lens[:,None] > np.arange(lens.max())
     out = np.full(mask.shape,fillval)
     out[mask] = np.concatenate(v)
+    #if this function ouputs 
+    #*** ValueError: could not convert string to float:
+    #that means there is a comma without a value after it like
+    #     1
+    #     2
+    # --> 3,
+    #     4
+    #     5
+    #in the ILI section below the columns in the .txt files
     return out
 
 #Define consecutive sequence finder
@@ -65,7 +74,6 @@ def MedMS8_reader_stone(file_name, file_check, min_latency=100, min_ILI=75, filt
     
 
     """
-
     file_input = open(file_name)
     lines = file_input.readlines()
 
@@ -120,7 +128,6 @@ def MedMS8_reader_stone(file_name, file_check, min_latency=100, min_ILI=75, filt
                 #the first col of the matrix is PRESENTATION, the second is Latency, and the rest are the ILIs
                 lat_set = np.insert(lat_set,1,np.asarray(first_lat),axis=1)
                 lat_set = np.nan_to_num(lat_set)
-
                 #the following lines will apply the filtering logic detailed in the 
                 #function's docstring
                 if filter_false_licks:
@@ -128,36 +135,41 @@ def MedMS8_reader_stone(file_name, file_check, min_latency=100, min_ILI=75, filt
                     presentations = lat_set[:, 0]
                     # Then, remove the first column from lat_set
                     lat_set = np.delete(lat_set, 0, 1)
-                    
                     #for every row do the following of "lat_set", while the first
-                    #entry is less than 100, the first row becomes the sum of the
+                    #entry is less than min_lat, the first row becomes the sum of the
                     #first entry and the second entry and all of the entries above
                     #the 1st shift to the left 1 place and the leftover rightmost
                     #entry becomes 0
+                    cut_time = []
                     cutslist = []
                     for row in lat_set:
+                        if len(row) < 2:
+                            cutslist.append(0)
+                            cut_time.append(0)
+                            continue
                         cuts=0
-                        if len(row) ==1:
-                            row[0] = np.array([np.nan])[0]
-                        else:
+                        if len(row) > 1:
+                            cut_t = 0
                             while row[0] < min_latency:
+                                cut_t += row[1] #total time cut from the trial in ms
                                 row[0] = row[0] + row[1]
                                 row[1:-1] = row[2:]
                                 row[-1] = 0
                                 cuts +=1
                                 if cuts >5: #failsafe so the loop doesn't go infinite, arbitrarily set at 5
                                     break
-                        #then, set all ILIs under min_ILI to 0 to be deleted later
-                        for j in range(len(row[1:])):
-                            if row[j] < min_ILI and row[j] != 0:
-                                row[j] = 0
-                                cuts+=1
-                            
+                            #then, set all ILIs under min_ILI to 0 to be deleted later
+                            for j in range(1, len(row)):
+                                if row[j] < min_ILI and row[j] != 0:
+                                    row[j] = 0
+                                    cuts+=1
                         cutslist.append(cuts)
+                        cut_time.append(cut_t)
                     #unite presentations and the rest of the ilis once again
                     lat_set = np.column_stack((presentations, lat_set))
                 else:
                     cutslist = [0]*len(df['PRESENTATION'])
+                    cut_time = [0]*len(df['PRESENTATION'])
                 #cutslist is a list of deleted ilis for each presentation in the form
                 #[[x deleted for pres 1], [y for pres 2], [z for pres 3] ..... ]
                     
@@ -171,7 +183,7 @@ def MedMS8_reader_stone(file_name, file_check, min_latency=100, min_ILI=75, filt
 
                 #count non-nan by row
                 lick_set = [(~np.isnan(a)).sum(0) for a in padded_set[:,1:]]
-                
+                df['Tri_LENGTH'] = [x/1000 for x in cut_time]
                 #take out the amount of cuts from the licks
                 df['LICKS'] = df['LICKS'].astype(int) - pd.Series(cutslist)
                 #make any entry less than 0 equal to 0 instead
@@ -193,6 +205,8 @@ def MedMS8_reader_stone(file_name, file_check, min_latency=100, min_ILI=75, filt
                 df[["PRESENTATION","TUBE","LICKS","Latency"]] = \
                     df[["PRESENTATION","TUBE","LICKS","Latency"]].apply(pd.to_numeric)
 
+                df['CONCENTRATION'] = pd.to_numeric(df['CONCENTRATION'], errors='coerce').fillna(df['CONCENTRATION'])
+                
                 #Add in identifier columns
                 df.insert(loc=0, column='Animal', value=Detail_Dict['Animal'])
                 df.insert(loc=0, column='Date', value=Detail_Dict['StartDate'])
@@ -225,10 +239,15 @@ def MedMS8_reader_stone(file_name, file_check, min_latency=100, min_ILI=75, filt
             if detail_df.Notes[detail_row[:,case][0]].lower() in \
                 Detail_Dict['FileName'][Detail_Dict['FileName'].rfind('_')+1:].lower()\
                 and detail_df.Animal[detail_row[:,case][0]] in Detail_Dict['Animal']:
-
+                
+                    
                 #Add details to dataframe    
-                df.insert(loc=1, column='Notes', value=detail_df['Notes'].apply(lambda x: x.lower() if not pd.isnull(x) else x))
-                df.insert(loc=2, column='Condition', value=detail_df['Condition'].apply(lambda x: x.lower() if not pd.isnull(x) else x))
+                df.insert(loc=1, column='Notes', \
+                    value=detail_df.Notes[detail_row[:,case][0]].lower())
+                detail_df['Condition'] = detail_df['Condition'].fillna('none')
+
+                df.insert(loc=2, column='Condition', \
+                    value=detail_df.Condition[detail_row[:,case][0]].lower())
                 break
                 
     if len(file_check) == 0:
@@ -249,15 +268,13 @@ def LickMicroStructure_stone(dFrame_lick,latency_array, bout_crit):
 #               licks to count as a bout (details in: Davis 1996 & Spector et al. 1998).
 # 
 #     Output: Appended dataframe with the licks within a bout/trial, latency to 
-#             first lick within trial
+#             to first lick within trial    
 # =============================================================================
 
     #Find where the last lick occured in each trial
-    if len(latency_array) > 0 and len(latency_array[0]) > 0:
-        last_lick = list(map(lambda x: [i for i, x_ in enumerate(x) if not np.isnan(x_)][-1], latency_array))
-    else:
-        last_lick = []
-
+    last_lick = list(map(lambda x: [i for i, x_ in enumerate(x) if not \
+                                    np.isnan(x_)][-1], latency_array))
+    
     #Create function to search rows of matrix avoiding 'runtime error' caused by Nans
     crit_nan_search = np.frompyfunc(lambda x: (~np.isnan(x)) & (x >=bout_crit), 1, 1)
     i = 0
@@ -265,12 +282,10 @@ def LickMicroStructure_stone(dFrame_lick,latency_array, bout_crit):
     bouts = []; ILIs_win_bouts = []
     for i in range(latency_array.shape[0]):
         #Create condition if animal never licks within trial
-        if latency_array.size == 0:
-            bouts.append([])
-            ILIs_win_bouts.append([])
-        elif last_lick[i] == 0:
+        if last_lick[i] == 0:
             bouts.append(last_lick[i])
             ILIs_win_bouts.append(last_lick[i])
+            
         else:
             bout_pos = np.where(np.array(crit_nan_search(latency_array[i,:])).astype(int))
             
@@ -316,39 +331,41 @@ def LickMicroStructure_stone(dFrame_lick,latency_array, bout_crit):
     #do a quality of life filter
     ILIs_win_bouts = [[] if x == 0 else x[1:] for x in ILIs_win_bouts]
     dFrame_lick["Bouts"] = bouts
-    dFrame_lick["ILIs"] = ILIs_win_bouts         
-    if latency_array.shape[1] >= 2:
-        dFrame_lick["Lat_First"] = latency_array[:, 1]
+    dFrame_lick["ILIs"] = ILIs_win_bouts        
+    if latency_array.shape[1] <= 1:
+        dFrame_lick["Lat_First"] = np.nan
     else:
         # Handle the case when the array doesn't have enough columns
-        dFrame_lick["Lat_First"] = np.nan
+        dFrame_lick["Lat_First"] = latency_array[:, 1]
     return dFrame_lick	    
 
 # =============================================================================
 # =============================================================================
-# # #BEGIN PROCESSING
+# # IMPORTANT FUNCTION
 # =============================================================================
 # =============================================================================
-
-#just for debugging
-
-# dir_name = "/home/senecascott/Documents/AviData/DebuggingData/"
-# dir_name = "/home/senecascott/Documents/AviData/SenecasData/"
-# detail_check = "No"
-
 
 def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, min_ILI=75, save_df=True):
+    asked = False
     if dir_name=="ask":
         dir_name = easygui.diropenbox()
     os.chdir(dir_name)
     if info_name == 'ask':
         info_name = easygui.diropenbox(msg='Do you have a ".txt" supplementary info file? (If none click cancel)')
+        asked = True
     
     if info_name != None:
         file_check = glob.glob(info_name + '/*.txt')
     else:
         file_check = []
-        
+    
+    if file_check == [] and asked:
+        print('''
+              
+              davis_rig_parser.create_df()
+                  If you don't have extra info and you don't want the pop up everytime, pass info_name=None into create_df()
+    
+    ''')
     #Initiate a list to store individual file dataframes                
     merged_data = []   
     #Look for the ms8 files in the directory
@@ -370,7 +387,7 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
     merged_df = pd.concat(merged_data)
     
     #Format to capitalize first letter of labels
-    #merged_df['Condition'] = merged_df.Condition.str.title()
+    merged_df['Condition'] = merged_df.Condition.str.title()
     
     #Extract dataframe for ease of handling
     df = merged_df
@@ -387,22 +404,26 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
     
     #Work on ILI means
     df_lists = df[['ILIs']].unstack().apply(pd.Series)
-
+    
     all_trials = []
     for row in range(df_lists.shape[0]):
+    
         trial_ILI = []
-        for element in df_lists.iloc[row]:
-            if isinstance(element, list):  # Only append if the element is a list
-                trial_ILI.append(element)
+        trial_ILI = [np.insert(trial_ILI,len(trial_ILI),df_lists.iloc[row][i]) for i in \
+                     range(0,int(np.array(df_lists.iloc[row].shape)))]
         flatt_trial = list(itertools.chain(*trial_ILI))
-        # exclude nan vals
-        all_trials.append([i for i in flatt_trial if not np.isnan(i)])  # Remove NaNs from the list before appending
-
+        #exclude nan vals
+        all_trials.append(np.array([i for i in flatt_trial if not np.isnan(i)]))  # Remove NaNs from the list before appending
+    
     #Store ILIs extended into dataframe
     df['ILI_all'] = all_trials
-    
     df['Animal'] = df['Animal'].str.strip()
     df['LENGTH'] = df['LENGTH'].str.strip().astype(int)
+    
+    #Length is the length given to the shutter opening, but since the 
+    #first lick(s) could be false, the actual time the rat has to lick
+    #is Tri_Length
+    df['Tri_LENGTH'] = df['LENGTH'] - df['Tri_LENGTH']
     
     #Save dataframe for later use/plotting/analyses
     #timestamped with date
@@ -410,6 +431,9 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
         df.to_pickle(dir_name+'/%s_grouped_dframe.df' %(date.today().strftime("%d_%m_%Y")))
 
     return df
+
+
+
 
 #Work in progress below ---- No documentation yet
 def assign_day(df):

@@ -410,3 +410,10 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
         df.to_pickle(dir_name+'/%s_grouped_dframe.df' %(date.today().strftime("%d_%m_%Y")))
 
     return df
+
+#Work in progress below ---- No documentation yet
+def assign_day(df):
+    #uses a date column to assign a day column
+    for name, group in df.groupby(['Animal']):
+        mindate = min(df['Date'])
+        group['Day'] = [(x).days + 1 for x in (group['Date'] - mindate)]
