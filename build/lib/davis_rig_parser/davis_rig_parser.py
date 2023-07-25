@@ -225,13 +225,10 @@ def MedMS8_reader_stone(file_name, file_check, min_latency=100, min_ILI=75, filt
             if detail_df.Notes[detail_row[:,case][0]].lower() in \
                 Detail_Dict['FileName'][Detail_Dict['FileName'].rfind('_')+1:].lower()\
                 and detail_df.Animal[detail_row[:,case][0]] in Detail_Dict['Animal']:
-                
-                    
+
                 #Add details to dataframe    
-                df.insert(loc=1, column='Notes', \
-                    value=detail_df.Notes[detail_row[:,case][0]].lower())
-                df.insert(loc=2, column='Condition', \
-                    value=detail_df.Condition[detail_row[:,case][0]].lower())
+                df.insert(loc=1, column='Notes', value=detail_df['Notes'].apply(lambda x: x.lower() if not pd.isnull(x) else x))
+                df.insert(loc=2, column='Condition', value=detail_df['Condition'].apply(lambda x: x.lower() if not pd.isnull(x) else x))
                 break
                 
     if len(file_check) == 0:
@@ -373,7 +370,7 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
     merged_df = pd.concat(merged_data)
     
     #Format to capitalize first letter of labels
-    merged_df['Condition'] = merged_df.Condition.str.title()
+    #merged_df['Condition'] = merged_df.Condition.str.title()
     
     #Extract dataframe for ease of handling
     df = merged_df
@@ -390,17 +387,17 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
     
     #Work on ILI means
     df_lists = df[['ILIs']].unstack().apply(pd.Series)
-    
+
     all_trials = []
     for row in range(df_lists.shape[0]):
-    
         trial_ILI = []
-        trial_ILI = [np.insert(trial_ILI,len(trial_ILI),df_lists.iloc[row][i]) for i in \
-                     range(0,int(np.array(df_lists.iloc[row].shape)))]
+        for element in df_lists.iloc[row]:
+            if isinstance(element, list):  # Only append if the element is a list
+                trial_ILI.append(element)
         flatt_trial = list(itertools.chain(*trial_ILI))
-        #exclude nan vals
-        all_trials.append(np.array([i for i in flatt_trial if not np.isnan(i)]))  # Remove NaNs from the list before appending
-    
+        # exclude nan vals
+        all_trials.append([i for i in flatt_trial if not np.isnan(i)])  # Remove NaNs from the list before appending
+
     #Store ILIs extended into dataframe
     df['ILI_all'] = all_trials
     
