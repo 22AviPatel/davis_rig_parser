@@ -156,7 +156,8 @@ def MedMS8_reader_stone(file_name, file_check, min_latency=100, min_ILI=75, filt
                                 row[1:-1] = row[2:]
                                 row[-1] = 0
                                 cuts +=1
-                                if cuts >5: #failsafe so the loop doesn't go infinite, arbitrarily set at 5
+                                if cuts > len(row): #failsafe so the loop doesn't go infinite
+                                    row[0] = np.nan
                                     break
                             #then, set all ILIs under min_ILI to 0 to be deleted later
                             for j in range(1, len(row)):
@@ -431,7 +432,6 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
         df.to_pickle(dir_name+'/%s_grouped_dframe.df' %(date.today().strftime("%d_%m_%Y")))
 
     return df
-
 
 
 
