@@ -85,6 +85,8 @@ If you would like to change the bout size you are using change the bout_pause pa
 import davis_rig_parser
 
 davis_rig_parser.create_df(bout_pause=300)
+#Keep in mind you can change multiple parameters at once
+davis_rig_parser.create_df(bout_pause=300, min_latency=100, min_ILI=75)
 ```
 #### Minimum Latency
 
@@ -93,6 +95,9 @@ The Davis Rig will occasionally record false licks when the shutter opens. If th
 import davis_rig_parser
 
 davis_rig_parser.create_df(min_latency=100)
+#Keep in mind you can change multiple at once
+davis_rig_parser.create_df(bout_pause=300, min_latency=100)
+
 ```
 Possible false licks created by the shutter closing are not accounted for. 
 #### Minimum Possible ILI
@@ -102,7 +107,10 @@ The parser will delete all interlick intervals (ILIs) under the min_ILI threshol
 import davis_rig_parser
 
 davis_rig_parser.create_df(min_ILI=75)
+#Keep in mind you can change multiple parameters at once
+davis_rig_parser.create_df(bout_pause=300, min_latency=100, min_ILI=75)
 ```
+
 ## License
 
 This project is licensed under the terms of the GNU General Public License v3.0.
