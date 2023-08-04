@@ -34,7 +34,9 @@ You're now ready to use davis_rig_parser to create dataframes!
 
 ### Setting Up the Text Files
 
-Make sure you have a folder where the only .txt files are the Med Associates gustometer standardized output for the Davis Rig, you should put all .txt files you want to be turned into a dataframe in the same folder for ease. If you have a .txt file with supplemental animal info, put those in a separate folder. You should have two different folders. They don't have to be stored in adjacent folders, just different folders.
+Make sure you have a folder where the only .txt files are the Med Associates gustometer standardized output for the Davis Rig, you should put all .txt files you want to be turned into a dataframe in the same folder for ease. 
+
+If you have a .txt file with supplemental animal info, put those in a separate folder. In this case, you should have two different folders. They don't have to be stored in adjacent folders, just different folders.
 
 ### Running the code
 
