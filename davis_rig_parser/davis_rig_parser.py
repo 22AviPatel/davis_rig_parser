@@ -426,7 +426,7 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
     #is Tri_Length
     df['Tri_LENGTH'] = df['LENGTH'] - df['Tri_LENGTH']
     
-	df['Bouts'] = df['Bouts'].apply(lambda x: [] if isinstance(x, int) and x == 0 else x)
+    df['Bouts'] = df['Bouts'].apply(lambda x: [] if isinstance(x, int) and x == 0 else x)
 
 
     
