@@ -428,7 +428,25 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
     
     df['Bouts'] = df['Bouts'].apply(lambda x: [] if isinstance(x, int) and x == 0 else x)
 
-
+    i = 1
+    groups = []
+    #assign experiment and subject numbers
+    for name, group in df.groupby(['Animal']):
+        group['Subject'] = f'Animal{i}'
+        i+=1
+        groups.append(group)
+    df = pd.concat(groups)
+    
+    # rearrange the columns to place 'Subject' next to 'Animal'
+    cols = df.columns.tolist()
+    animal_index = cols.index('Animal')
+    cols = cols[:animal_index+1] + ['Subject'] + cols[animal_index+1:]
+    
+    # rearrange the columns to place 'Tri_LENGTH' next to 'LENGTH'
+    length_index = cols.index('LENGTH')
+    cols = cols[:length_index+1] + ['Tri_LENGTH'] + cols[length_index+1:-1]
+    
+    df = df[cols]
     
     #Save dataframe for later use/plotting/analyses
     #timestamped with date
