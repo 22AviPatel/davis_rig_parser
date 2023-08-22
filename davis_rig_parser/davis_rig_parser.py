@@ -446,6 +446,8 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
     length_index = cols.index('LENGTH')
     cols = cols[:length_index+1] + ['TriLength'] + cols[length_index+1:-1]
     
+    df = df[cols]
+    
     df = df.rename(columns={'PRESENTATION': 'Presentation'})
     df = df.rename(columns={'Trial_num': 'TrialNum'})
     df = df.rename(columns={'TUBE': 'Tube'})
@@ -458,9 +460,7 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
     df = df.rename(columns={'Bouts_mean': 'BoutsMean'})
     df = df.rename(columns={'Bouts_mean': 'BoutsMean'})
     df = df.rename(columns={'ILI_all': 'AllILIS'})
-    
-    
-    df = df[cols]
+    df = df.rename(columns={'CloseError\n': 'CloseError'})
     
     #Save dataframe for later use/plotting/analyses
     #timestamped with date
