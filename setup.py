@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='davis_rig_parser',
-    version='0.2.3',
+    version='0.2.4',
     url='https://github.com/<your-github-username>/my_module',
     author='Avi Patel, Bradly Stone, Daniel Svedberg',
     author_email='avpnea@gmail.com, dan.ake.svedberg@gmail.com',
