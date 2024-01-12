@@ -20,12 +20,63 @@ import pandas as pd
 import itertools
 import glob
 from datetime import date
-
+from datetime import datetime, timedelta
 # =============================================================================
 # =============================================================================
 # # #DEFINE ALL FUNCTIONS
 # =============================================================================
 # =============================================================================
+#Assign day is a work in progress ---- No documentation yet
+def assign_day(df):
+    #uses a date column to assign a day column
+    for name, group in df.groupby(['Animal']):
+        mindate = min(df['Date'])
+        group['Day'] = [(x).days + 1 for x in (group['Date'] - mindate)]
+
+def assign_time(df):
+    # Update the Time column
+    for i in range(len(df) - 1):
+        if i>0:
+            current_time = convert_to_datetime(df.at[i-1, 'Time'])
+        else:
+            current_time = convert_to_datetime(df.at[i, 'Time'])
+        latency = df.at[i, 'Latency']
+        ipi = df.at[i, 'IPI']
+        if i > 0:
+            tri_len = df.at[i-1, 'Length']
+        else:
+            tri_len = 0
+        new_time = add_seconds_to_time(current_time, round(latency + ipi + tri_len))
+        df.at[i, 'Time'] = new_time.strftime('%H:%M:%S')
+    return df
+# Function to convert time string to datetime object
+def convert_to_datetime(time_str):
+    return datetime.strptime(time_str, '%H:%M:%S')
+# Function to add seconds to datetime object
+def add_seconds_to_time(time_obj, seconds):
+    return time_obj + timedelta(seconds=seconds)
+def calculate_lick_rates(ili_list, bout_pause=300):
+    if len(ili_list)==0:  # Check for empty list
+        return [0]
+
+    bouts = []
+    current_bout = []
+
+    for ili in ili_list:
+        if ili >= 300:
+            # End of a bout, calculate rate and start a new bout
+            if current_bout:
+                bouts.append((len(current_bout)+1)/ (sum(current_bout)/1000))
+            current_bout = []
+        else:
+            current_bout.append(ili)
+
+    # Handle the last bout
+    if current_bout:
+        bouts.append((len(current_bout)+1)/ (sum(current_bout)/1000))
+        
+    return bouts if bouts else [0]  # Return [0] if no bouts found
+
 #Define a padding function
 def boolean_indexing(v, fillval=np.nan):
     lens = np.array([len(item) for item in v])
@@ -216,7 +267,7 @@ def MedMS8_reader_stone(file_name, file_check, min_latency=100, min_ILI=75, filt
 
                 #convert the dates to datetime
                 df['Date'] =  pd.to_datetime(df['Date'], format='%Y/%m/%d')
-                
+                df['Time'] = Detail_Dict['StartTime'] 
                 #Store in dataframe
                 Detail_Dict['LickDF'] = df		
 
@@ -442,21 +493,36 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
     df['MaxWait'] = MaxWait
     df['MaxWait'] = df['MaxWait'].apply(lambda x: float(str(x).strip()))
 
-
+    cols = df.columns.tolist()
+    
+    # rearrange the columns to place 'Time' next to 'Date'
+    date_index = cols.index('Date')
+    time_index = cols.index('Time')
+    cols.insert(date_index + 1, cols.pop(time_index))
     
     # rearrange the columns to place 'Subject' next to 'Animal'
-    cols = df.columns.tolist()
     animal_index = cols.index('Animal')
-    cols = cols[:animal_index+1] + ['Subject'] + cols[animal_index+1:]
+    subject_index = cols.index('Subject')
+    cols.insert(animal_index + 1, cols.pop(subject_index))
     
-    # rearrange the columns to place 'Tri_LENGTH' next to 'LENGTH'
+    # rearrange the columns to place 'TriLength' next to 'LENGTH'
     length_index = cols.index('LENGTH')
-    cols = cols[:length_index+1] + ['TriLength'] + cols[length_index+1:-1]
+    tri_length_index = cols.index('TriLength')
+    cols.insert(length_index + 1, cols.pop(tri_length_index))
     
-    length_index = cols.index('Latency')
-    cols = cols[:length_index+1] + ['MaxWait'] + cols[length_index+1:-1]
+    # rearrange the columns to place 'MaxWait' next to 'Latency'
+    latency_index = cols.index('Latency')
+    max_wait_index = cols.index('MaxWait')
+    cols.insert(latency_index + 1, cols.pop(max_wait_index))
     
+    # Reorder the DataFrame
     df = df[cols]
+    
+    #convert latency to 1second
+    df.Latency = df.Latency/1000
+    #and make Time a string
+    df.Time = df.Time.astype(str).str.strip()
+    df.IPI = df.IPI.astype(float)
     
     df = df.rename(columns={'PRESENTATION': 'Presentation'})
     df = df.rename(columns={'Trial_num': 'TrialNum'})
@@ -471,8 +537,16 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
     df = df.rename(columns={'ILI_all': 'AllILIs'})
     df = df.rename(columns={'CloseError\n': 'CloseError'})
     
+    StartTime = [str(x) for x in df['Time']]
+    df['StartTime'] = StartTime
+    filts = []
 
-    
+    for name, group in df.groupby(['Animal']):
+        filts.append(assign_time(group))
+    df = pd.concat(filts)
+
+    #add lickrate too
+    df['LickRate'] = df['AllILIs'].apply(calculate_lick_rates, bout_pause=300)
     #Save dataframe for later use/plotting/analyses
     #timestamped with date
     if save_df==True:
@@ -482,9 +556,3 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
 
 
 
-#Work in progress below ---- No documentation yet
-def assign_day(df):
-    #uses a date column to assign a day column
-    for name, group in df.groupby(['Animal']):
-        mindate = min(df['Date'])
-        group['Day'] = [(x).days + 1 for x in (group['Date'] - mindate)]

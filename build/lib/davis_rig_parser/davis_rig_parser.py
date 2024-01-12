@@ -83,7 +83,7 @@ def MedMS8_reader_stone(file_name, file_check, min_latency=100, min_ILI=75, filt
 				   'StartTime': None,\
 				   'Animal': None,\
 				   'Condition': None,\
-				   'MAXFLick': None,\
+				   'MaxWait': None,\
 				   'Trials': None,\
 				   'LickDF': None,\
 				   'LatencyMatrix': None}
@@ -100,7 +100,7 @@ def MedMS8_reader_stone(file_name, file_check, min_latency=100, min_ILI=75, filt
         if "Animal ID" in lines[i]:
             Detail_Dict['Animal'] = lines[i].split(',')[-1][:-1]		
         if "Max Wait" in lines[i]:
-            Detail_Dict['MAXFLick'] = lines[i].split(',')[-1][:-1]			
+            Detail_Dict['MaxWait'] = lines[i].split(',')[-1][:-1]			
         if "Max Number" in lines[i]:
             Detail_Dict['Trials'] = lines[i].split(',')[-1][:-1]			
         if "PRESENTATION" and "TUBE" in lines[i]:		
@@ -184,7 +184,7 @@ def MedMS8_reader_stone(file_name, file_check, min_latency=100, min_ILI=75, filt
 
                 #count non-nan by row
                 lick_set = [(~np.isnan(a)).sum(0) for a in padded_set[:,1:]]
-                df['Tri_LENGTH'] = [x/1000 for x in cut_time]
+                df['TriLength'] = [x/1000 for x in cut_time]
                 #take out the amount of cuts from the licks
                 df['LICKS'] = df['LICKS'].astype(int) - pd.Series(cutslist)
                 #make any entry less than 0 equal to 0 instead
@@ -379,6 +379,7 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
         
             #Run functions to extract trial data
             out_put_dict = MedMS8_reader_stone(file_name, file_check, min_latency, min_ILI=min_ILI)
+            MaxWait = out_put_dict['MaxWait']
             dfFull = LickMicroStructure_stone(out_put_dict['LickDF'], out_put_dict['LatencyMatrix'], bout_pause)
     
             #Merge the data into a list
@@ -424,7 +425,7 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
     #Length is the length given to the shutter opening, but since the 
     #first lick(s) could be false, the actual time the rat has to lick
     #is Tri_Length
-    df['Tri_LENGTH'] = df['LENGTH'] - df['Tri_LENGTH']
+    df['TriLength'] = df['LENGTH'] - df['TriLength']
     
     df['Bouts'] = df['Bouts'].apply(lambda x: [] if isinstance(x, int) and x == 0 else x)
 
@@ -437,6 +438,12 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
         groups.append(group)
     df = pd.concat(groups)
     
+    #add how long the rat has to start licking
+    df['MaxWait'] = MaxWait
+    df['MaxWait'] = df['MaxWait'].apply(lambda x: float(str(x).strip()))
+
+
+    
     # rearrange the columns to place 'Subject' next to 'Animal'
     cols = df.columns.tolist()
     animal_index = cols.index('Animal')
@@ -444,9 +451,27 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
     
     # rearrange the columns to place 'Tri_LENGTH' next to 'LENGTH'
     length_index = cols.index('LENGTH')
-    cols = cols[:length_index+1] + ['Tri_LENGTH'] + cols[length_index+1:-1]
+    cols = cols[:length_index+1] + ['TriLength'] + cols[length_index+1:-1]
+    
+    length_index = cols.index('Latency')
+    cols = cols[:length_index+1] + ['MaxWait'] + cols[length_index+1:-1]
     
     df = df[cols]
+    
+    df = df.rename(columns={'PRESENTATION': 'Presentation'})
+    df = df.rename(columns={'Trial_num': 'TrialNum'})
+    df = df.rename(columns={'TUBE': 'Tube'})
+    df = df.rename(columns={'CONCENTRATION': 'Concentration'})
+    df = df.rename(columns={'SOLUTION': 'Solution'})
+    df = df.rename(columns={'LENGTH': 'Length'})
+    df = df.rename(columns={'LICKS': 'Licks'})
+    df = df.rename(columns={'Lat_First': 'LatFirst'})
+    df = df.rename(columns={'bout_count': 'BoutCount'})
+    df = df.rename(columns={'Bouts_mean': 'BoutsMean'})
+    df = df.rename(columns={'ILI_all': 'AllILIs'})
+    df = df.rename(columns={'CloseError\n': 'CloseError'})
+    
+
     
     #Save dataframe for later use/plotting/analyses
     #timestamped with date
