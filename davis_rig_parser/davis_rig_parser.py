@@ -524,6 +524,8 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
     df.Time = df.Time.astype(str).str.strip()
     df.IPI = df.IPI.astype(float)
     
+    #Wow, look at you, reading through the code! Good job keep it up.
+    
     df = df.rename(columns={'PRESENTATION': 'Presentation'})
     df = df.rename(columns={'Trial_num': 'TrialNum'})
     df = df.rename(columns={'TUBE': 'Tube'})
