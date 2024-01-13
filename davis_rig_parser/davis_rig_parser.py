@@ -29,9 +29,12 @@ from datetime import datetime, timedelta
 #Assign day is a work in progress ---- No documentation yet
 def assign_day(df):
     #uses a date column to assign a day column
+    groups = []
     for name, group in df.groupby(['Animal']):
         mindate = min(df['Date'])
         group['Day'] = [(x).days + 1 for x in (group['Date'] - mindate)]
+        groups.append(group)
+    return pd.concat(groups)
 
 def assign_time(df):
     # Update the Time column
@@ -40,7 +43,7 @@ def assign_time(df):
             current_time = convert_to_datetime(df.at[i-1, 'Time'])
         else:
             current_time = convert_to_datetime(df.at[i, 'Time'])
-        latency = df.at[i, 'Latency']
+        latency = (df.at[i, 'RawLatency'])/1000
         ipi = df.at[i, 'IPI']
         if i > 0:
             tri_len = df.at[i-1, 'Length']
@@ -167,7 +170,8 @@ def MedMS8_reader_stone(file_name, file_check, min_latency=100, min_ILI=75, filt
                #raise ValueError
                 #Remove spaces in column headers (caused by split)
                 df.columns = df.columns.str.replace(' ', '')
-                
+                df['RawLatency'] = df['Latency'].astype(int)
+
                 #The rig (occassionally) introduces a "ghost lick" whereby the shutter,
                 #in and of itself registers a "lick" at an impossible ILI. For this reason
                 #we will screen out ANY lick that occurs <min_latency
@@ -240,7 +244,7 @@ def MedMS8_reader_stone(file_name, file_check, min_latency=100, min_ILI=75, filt
                 df['LICKS'] = df['LICKS'].astype(int) - pd.Series(cutslist)
                 #make any entry less than 0 equal to 0 instead
                 df['LICKS'] = df['LICKS'].clip(lower=0)
-
+                
                 #raise ValueError
                 #update the datarame to hold the fixed data
                 df['Latency'] = padded_set[:,1]
@@ -538,12 +542,11 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
     df = df.rename(columns={'Bouts_mean': 'BoutsMean'})
     df = df.rename(columns={'ILI_all': 'AllILIs'})
     df = df.rename(columns={'CloseError\n': 'CloseError'})
-    
+
     StartTime = [str(x) for x in df['Time']]
     df['StartTime'] = StartTime
     filts = []
-
-    for name, group in df.groupby(['Animal']):
+    for name, group in df.groupby(['Animal', 'Date']):
         filts.append(assign_time(group))
     df = pd.concat(filts)
 
@@ -555,6 +558,4 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
         df.to_pickle(dir_name+'/%s_grouped_dframe.df' %(date.today().strftime("%d_%m_%Y")))
 
     return df
-
-
 
