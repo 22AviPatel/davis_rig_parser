@@ -562,7 +562,3 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
 
     return df
 
-
-bout_pause = 300
-df = create_df(bout_pause = bout_pause, dir_name = "/home/senecascott/Documents/AviData/AviData", save_df=False,  info_name =None)
-
