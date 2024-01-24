@@ -37,20 +37,23 @@ def assign_day(df):
     return pd.concat(groups)
 
 def assign_time(df):
+
     # Update the Time column
     for i in range(len(df) - 1):
         if i>0:
             current_time = convert_to_datetime(df.at[i-1, 'Time'])
         else:
             current_time = convert_to_datetime(df.at[i, 'Time'])
-        latency = (df.at[i, 'RawLatency'])/1000
+        latency = (df.at[i, 'Latency'])/1000
         ipi = df.at[i, 'IPI']
         if i > 0:
-            tri_len = df.at[i-1, 'Length']
+            tri_len = df.at[i-1, 'LENGTH']
         else:
             tri_len = 0
+
         new_time = add_seconds_to_time(current_time, round(latency + ipi + tri_len))
         df.at[i, 'Time'] = new_time.strftime('%H:%M:%S')
+
     return df
 # Function to convert time string to datetime object
 def convert_to_datetime(time_str):
@@ -170,7 +173,19 @@ def MedMS8_reader_stone(file_name, file_check, min_latency=100, min_ILI=75, filt
                #raise ValueError
                 #Remove spaces in column headers (caused by split)
                 df.columns = df.columns.str.replace(' ', '')
-                df['RawLatency'] = df['Latency'].astype(int)
+
+                df.Latency = df.Latency.astype(float)
+                df.IPI = df.IPI.astype(float)
+                df.LENGTH = df.LENGTH.astype(float)
+                df['StartTime'] = Detail_Dict['StartTime'] 
+                #the assing time function uses an existing 'Time', 'Length' coluumn to add to
+                df['Time'] = Detail_Dict['StartTime'] 
+
+                #and make Time a string
+                df.Time = df.Time.astype(str).str.strip()
+                df.IPI = df.IPI.astype(float)
+
+                df = assign_time(df)
 
                 #The rig (occassionally) introduces a "ghost lick" whereby the shutter,
                 #in and of itself registers a "lick" at an impossible ILI. For this reason
@@ -178,7 +193,7 @@ def MedMS8_reader_stone(file_name, file_check, min_latency=100, min_ILI=75, filt
                 first_lat = df['Latency']
                 lat_set = boolean_indexing([row.split(',')\
                                  for row in lines[Trial_data_stop+1:]])
-                
+
                 #add first latency into larger extracted matrix
                 #the first col of the matrix is PRESENTATION, the second is Latency, and the rest are the ILIs
                 lat_set = np.insert(lat_set,1,np.asarray(first_lat),axis=1)
@@ -271,7 +286,7 @@ def MedMS8_reader_stone(file_name, file_check, min_latency=100, min_ILI=75, filt
 
                 #convert the dates to datetime
                 df['Date'] =  pd.to_datetime(df['Date'], format='%Y/%m/%d')
-                df['Time'] = Detail_Dict['StartTime'] 
+                
                 #Store in dataframe
                 Detail_Dict['LickDF'] = df		
 
@@ -475,7 +490,6 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
     #Store ILIs extended into dataframe
     df['ILI_all'] = all_trials
     df['Animal'] = df['Animal'].str.strip()
-    df['LENGTH'] = df['LENGTH'].str.strip().astype(int)
     
     #Length is the length given to the shutter opening, but since the 
     #first lick(s) could be false, the actual time the rat has to lick
@@ -522,11 +536,7 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
     # Reorder the DataFrame
     df = df[cols]
     
-    #convert latency to 1second
-    df.Latency = df.Latency/1000
-    #and make Time a string
-    df.Time = df.Time.astype(str).str.strip()
-    df.IPI = df.IPI.astype(float)
+
     
     #Wow, look at you, reading through the code! Good job keep it up.
     
@@ -543,13 +553,6 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
     df = df.rename(columns={'ILI_all': 'AllILIs'})
     df = df.rename(columns={'CloseError\n': 'CloseError'})
 
-    StartTime = [str(x) for x in df['Time']]
-    df['StartTime'] = StartTime
-    filts = []
-    for name, group in df.groupby(['Animal', 'Date']):
-        filts.append(assign_time(group))
-    df = pd.concat(filts)
-
     #add lickrate too
     df['LickRate'] = df['AllILIs'].apply(calculate_lick_rates, bout_pause=300)
     #Save dataframe for later use/plotting/analyses
@@ -558,4 +561,8 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
         df.to_pickle(dir_name+'/%s_grouped_dframe.df' %(date.today().strftime("%d_%m_%Y")))
 
     return df
+
+
+bout_pause = 300
+df = create_df(bout_pause = bout_pause, dir_name = "/home/senecascott/Documents/AviData/AviData", save_df=False,  info_name =None)
 
