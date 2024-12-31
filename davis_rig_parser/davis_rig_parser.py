@@ -461,32 +461,42 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
     #Format to capitalize first letter of labels
     merged_df['Condition'] = merged_df.Condition.str.title()
     
-    #Extract dataframe for ease of handling
+    # Extract dataframe for ease of handling
     df = merged_df
-    #Untack all the ILIs across all bouts to performa math
-    df_lists = df[['Bouts']].unstack().apply(pd.Series)
-    #replace 0s with nans so that bout count makes 0 licks 0 bouts too
+    
+    # Ensure all entries in the 'Bouts' column are lists
+    df['Bouts'] = df['Bouts'].apply(lambda x: [x] if isinstance(x, int) else x)
+    
+    # Expand the lists in the 'Bouts' column into a DataFrame
+    df_lists = pd.DataFrame(df['Bouts'].tolist())
+    
+    # Replace 0s with NaNs to prevent them from being counted
     df_lists = df_lists.replace(0, np.nan)
     
-    df['bout_count'] = np.array(df_lists.count(axis='columns'))
+    # Compute bout counts (non-NaN values per row)
+    df['bout_count'] = df_lists.count(axis=1)
     
-    #replace all 0s with NaNs (arise due to licking once in the beginning with long pause)
-    df_lists.replace(0,np.nan,inplace = True)
-    df['Bouts_mean']=np.array(df_lists.mean(axis = 1, skipna = True))
-    
+    # Compute the mean of bouts, skipping NaNs
+    df['Bouts_mean'] = df_lists.mean(axis=1, skipna=True)
+
+
+
     #Work on ILI means
-    df_lists = df[['ILIs']].unstack().apply(pd.Series)
+    # Ensure the index is unique
+    df = df.reset_index(drop=True)
     
+    # Expand the lists in the 'ILIs' column into a DataFrame
+    df_lists = pd.DataFrame(df['ILIs'].apply(lambda x: [sublist for sublist in x]).tolist())
+    
+    # Flatten nested lists into all_trials
     all_trials = []
-    for row in range(df_lists.shape[0]):
-    
+    for _, row in df_lists.iterrows():
         trial_ILI = []
-        trial_ILI = [np.insert(trial_ILI,len(trial_ILI),df_lists.iloc[row][i]) for i in \
-                     range(0,int(np.array(df_lists.iloc[row].shape)))]
-        flatt_trial = list(itertools.chain(*trial_ILI))
-        #exclude nan vals
-        all_trials.append(np.array([i for i in flatt_trial if not np.isnan(i)]))  # Remove NaNs from the list before appending
-    
+        for sublist in row.dropna():
+            trial_ILI.append(sublist)
+        flat_trial = list(itertools.chain(*trial_ILI))
+        # Exclude NaN values
+        all_trials.append([i for i in flat_trial if not np.isnan(i)])
     #Store ILIs extended into dataframe
     df['ILI_all'] = all_trials
     df['Animal'] = df['Animal'].str.strip()
