@@ -461,43 +461,35 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
     #Format to capitalize first letter of labels
     merged_df['Condition'] = merged_df.Condition.str.title()
     
-    # Extract dataframe for ease of handling
+    #Extract dataframe for ease of handling
     df = merged_df
     
-    # Ensure all entries in the 'Bouts' column are lists
-    df['Bouts'] = df['Bouts'].apply(lambda x: [x] if isinstance(x, int) else x)
-    
-    # Expand the lists in the 'Bouts' column into a DataFrame
-    df_lists = pd.DataFrame(df['Bouts'].tolist())
-    
-    # Replace 0s with NaNs to prevent them from being counted
-    df_lists = df_lists.replace(0, np.nan)
-    
-    # Compute bout counts (non-NaN values per row)
-    df['bout_count'] = df_lists.count(axis=1)
-    
-    # Compute the mean of bouts, skipping NaNs
-    df['Bouts_mean'] = df_lists.mean(axis=1, skipna=True)
+    df['Bouts'] = df['Bouts'].apply(lambda x: [] if isinstance(x, (int, float)) and x == 0 else x)
+    df_lists = df['Bouts'].apply(pd.Series)
+    df['bout_count'] = df_lists.count(axis=1)       # number of elements in each list
+    df['Bouts_mean'] = df_lists.mean(axis=1, skipna=True)  # mean of each list
 
-
-
+    
     #Work on ILI means
-    # Ensure the index is unique
-    df = df.reset_index(drop=True)
+    df_lists = df['ILIs'].apply(lambda x: pd.Series(x if x else [np.nan]))
+    #each row is now a trial, and the columns are bouts, each column has a list of ILIs in that bout
     
-    # Expand the lists in the 'ILIs' column into a DataFrame
-    df_lists = pd.DataFrame(df['ILIs'].apply(lambda x: [sublist for sublist in x]).tolist())
+    def flatten_ILI(row):
+        """Flatten a row of nested lists and remove NaNs/empty lists."""
+        if not row:  # empty list
+            return np.array([], dtype=float)
+        # If row is a list of lists, flatten one level
+        elif all(isinstance(i, list) for i in row):
+            flat = [item for sublist in row for item in sublist]
+        else:
+            flat = row
+        # Remove any NaNs (in case of empty lists replaced with np.nan)
+        return np.array([i for i in flat if not (isinstance(i, float) and np.isnan(i))], dtype=float)
     
-    # Flatten nested lists into all_trials
-    all_trials = []
-    for _, row in df_lists.iterrows():
-        trial_ILI = []
-        for sublist in row.dropna():
-            trial_ILI.append(sublist)
-        flat_trial = list(itertools.chain(*trial_ILI))
-        # Exclude NaN values
-        all_trials.append([i for i in flat_trial if not np.isnan(i)])
-    #Store ILIs extended into dataframe
+    # Apply to the ILIs column
+    all_trials = df['ILIs'].apply(flatten_ILI).tolist()
+    
+        #Store ILIs extended into dataframe
     df['ILI_all'] = all_trials
     df['Animal'] = df['Animal'].str.strip()
     
@@ -506,8 +498,6 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
     #is Tri_Length
     df['TriLength'] = df['LENGTH'] - df['TriLength']
     
-    df['Bouts'] = df['Bouts'].apply(lambda x: [] if isinstance(x, int) and x == 0 else x)
-
     i = 1
     groups = []
     #assign experiment and subject numbers

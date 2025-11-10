@@ -20,12 +20,69 @@ import pandas as pd
 import itertools
 import glob
 from datetime import date
-
+from datetime import datetime, timedelta
 # =============================================================================
 # =============================================================================
 # # #DEFINE ALL FUNCTIONS
 # =============================================================================
 # =============================================================================
+#Assign day is a work in progress ---- No documentation yet
+def assign_day(df):
+    #uses a date column to assign a day column
+    groups = []
+    for name, group in df.groupby(['Animal']):
+        mindate = min(df['Date'])
+        group['Day'] = [(x).days + 1 for x in (group['Date'] - mindate)]
+        groups.append(group)
+    return pd.concat(groups)
+
+def assign_time(df):
+
+    # Update the Time column
+    for i in range(len(df) - 1):
+        if i>0:
+            current_time = convert_to_datetime(df.at[i-1, 'Time'])
+        else:
+            current_time = convert_to_datetime(df.at[i, 'Time'])
+        latency = (df.at[i, 'Latency'])/1000
+        ipi = df.at[i, 'IPI']
+        if i > 0:
+            tri_len = df.at[i-1, 'LENGTH']
+        else:
+            tri_len = 0
+
+        new_time = add_seconds_to_time(current_time, round(latency + ipi + tri_len))
+        df.at[i, 'Time'] = new_time.strftime('%H:%M:%S')
+
+    return df
+# Function to convert time string to datetime object
+def convert_to_datetime(time_str):
+    return datetime.strptime(time_str, '%H:%M:%S')
+# Function to add seconds to datetime object
+def add_seconds_to_time(time_obj, seconds):
+    return time_obj + timedelta(seconds=seconds)
+def calculate_lick_rates(ili_list, bout_pause=300):
+    if len(ili_list)==0:  # Check for empty list
+        return [0]
+
+    bouts = []
+    current_bout = []
+
+    for ili in ili_list:
+        if ili >= 300:
+            # End of a bout, calculate rate and start a new bout
+            if current_bout:
+                bouts.append((len(current_bout)+1)/ (sum(current_bout)/1000))
+            current_bout = []
+        else:
+            current_bout.append(ili)
+
+    # Handle the last bout
+    if current_bout:
+        bouts.append((len(current_bout)+1)/ (sum(current_bout)/1000))
+        
+    return bouts if bouts else [0]  # Return [0] if no bouts found
+
 #Define a padding function
 def boolean_indexing(v, fillval=np.nan):
     lens = np.array([len(item) for item in v])
@@ -116,14 +173,27 @@ def MedMS8_reader_stone(file_name, file_check, min_latency=100, min_ILI=75, filt
                #raise ValueError
                 #Remove spaces in column headers (caused by split)
                 df.columns = df.columns.str.replace(' ', '')
-                
+
+                df.Latency = df.Latency.astype(float)
+                df.IPI = df.IPI.astype(float)
+                df.LENGTH = df.LENGTH.astype(float)
+                df['StartTime'] = Detail_Dict['StartTime'] 
+                #the assing time function uses an existing 'Time', 'Length' coluumn to add to
+                df['Time'] = Detail_Dict['StartTime'] 
+
+                #and make Time a string
+                df.Time = df.Time.astype(str).str.strip()
+                df.IPI = df.IPI.astype(float)
+
+                df = assign_time(df)
+
                 #The rig (occassionally) introduces a "ghost lick" whereby the shutter,
                 #in and of itself registers a "lick" at an impossible ILI. For this reason
                 #we will screen out ANY lick that occurs <min_latency
                 first_lat = df['Latency']
                 lat_set = boolean_indexing([row.split(',')\
                                  for row in lines[Trial_data_stop+1:]])
-                
+
                 #add first latency into larger extracted matrix
                 #the first col of the matrix is PRESENTATION, the second is Latency, and the rest are the ILIs
                 lat_set = np.insert(lat_set,1,np.asarray(first_lat),axis=1)
@@ -189,7 +259,7 @@ def MedMS8_reader_stone(file_name, file_check, min_latency=100, min_ILI=75, filt
                 df['LICKS'] = df['LICKS'].astype(int) - pd.Series(cutslist)
                 #make any entry less than 0 equal to 0 instead
                 df['LICKS'] = df['LICKS'].clip(lower=0)
-
+                
                 #raise ValueError
                 #update the datarame to hold the fixed data
                 df['Latency'] = padded_set[:,1]
@@ -393,42 +463,41 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
     
     #Extract dataframe for ease of handling
     df = merged_df
-    #Untack all the ILIs across all bouts to performa math
-    df_lists = df[['Bouts']].unstack().apply(pd.Series)
-    #replace 0s with nans so that bout count makes 0 licks 0 bouts too
-    df_lists = df_lists.replace(0, np.nan)
     
-    df['bout_count'] = np.array(df_lists.count(axis='columns'))
-    
-    #replace all 0s with NaNs (arise due to licking once in the beginning with long pause)
-    df_lists.replace(0,np.nan,inplace = True)
-    df['Bouts_mean']=np.array(df_lists.mean(axis = 1, skipna = True))
+    df['Bouts'] = df['Bouts'].apply(lambda x: [] if isinstance(x, (int, float)) and x == 0 else x)
+    df_lists = df['Bouts'].apply(pd.Series)
+    df['bout_count'] = df_lists.count(axis=1)       # number of elements in each list
+    df['Bouts_mean'] = df_lists.mean(axis=1, skipna=True)  # mean of each list
+
     
     #Work on ILI means
-    df_lists = df[['ILIs']].unstack().apply(pd.Series)
+    df_lists = df['ILIs'].apply(lambda x: pd.Series(x if x else [np.nan]))
+    #each row is now a trial, and the columns are bouts, each column has a list of ILIs in that bout
     
-    all_trials = []
-    for row in range(df_lists.shape[0]):
+    def flatten_ILI(row):
+        """Flatten a row of nested lists and remove NaNs/empty lists."""
+        if not row:  # empty list
+            return np.array([], dtype=float)
+        # If row is a list of lists, flatten one level
+        elif all(isinstance(i, list) for i in row):
+            flat = [item for sublist in row for item in sublist]
+        else:
+            flat = row
+        # Remove any NaNs (in case of empty lists replaced with np.nan)
+        return np.array([i for i in flat if not (isinstance(i, float) and np.isnan(i))], dtype=float)
     
-        trial_ILI = []
-        trial_ILI = [np.insert(trial_ILI,len(trial_ILI),df_lists.iloc[row][i]) for i in \
-                     range(0,int(np.array(df_lists.iloc[row].shape)))]
-        flatt_trial = list(itertools.chain(*trial_ILI))
-        #exclude nan vals
-        all_trials.append(np.array([i for i in flatt_trial if not np.isnan(i)]))  # Remove NaNs from the list before appending
+    # Apply to the ILIs column
+    all_trials = df['ILIs'].apply(flatten_ILI).tolist()
     
-    #Store ILIs extended into dataframe
+        #Store ILIs extended into dataframe
     df['ILI_all'] = all_trials
     df['Animal'] = df['Animal'].str.strip()
-    df['LENGTH'] = df['LENGTH'].str.strip().astype(int)
     
     #Length is the length given to the shutter opening, but since the 
     #first lick(s) could be false, the actual time the rat has to lick
     #is Tri_Length
     df['TriLength'] = df['LENGTH'] - df['TriLength']
     
-    df['Bouts'] = df['Bouts'].apply(lambda x: [] if isinstance(x, int) and x == 0 else x)
-
     i = 1
     groups = []
     #assign experiment and subject numbers
@@ -442,21 +511,34 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
     df['MaxWait'] = MaxWait
     df['MaxWait'] = df['MaxWait'].apply(lambda x: float(str(x).strip()))
 
-
+    cols = df.columns.tolist()
+    
+    # rearrange the columns to place 'Time' next to 'Date'
+    date_index = cols.index('Date')
+    time_index = cols.index('Time')
+    cols.insert(date_index + 1, cols.pop(time_index))
     
     # rearrange the columns to place 'Subject' next to 'Animal'
-    cols = df.columns.tolist()
     animal_index = cols.index('Animal')
-    cols = cols[:animal_index+1] + ['Subject'] + cols[animal_index+1:]
+    subject_index = cols.index('Subject')
+    cols.insert(animal_index + 1, cols.pop(subject_index))
     
-    # rearrange the columns to place 'Tri_LENGTH' next to 'LENGTH'
+    # rearrange the columns to place 'TriLength' next to 'LENGTH'
     length_index = cols.index('LENGTH')
-    cols = cols[:length_index+1] + ['TriLength'] + cols[length_index+1:-1]
+    tri_length_index = cols.index('TriLength')
+    cols.insert(length_index + 1, cols.pop(tri_length_index))
     
-    length_index = cols.index('Latency')
-    cols = cols[:length_index+1] + ['MaxWait'] + cols[length_index+1:-1]
+    # rearrange the columns to place 'MaxWait' next to 'Latency'
+    latency_index = cols.index('Latency')
+    max_wait_index = cols.index('MaxWait')
+    cols.insert(latency_index + 1, cols.pop(max_wait_index))
     
+    # Reorder the DataFrame
     df = df[cols]
+    
+
+    
+    #Wow, look at you, reading through the code! Good job keep it up.
     
     df = df.rename(columns={'PRESENTATION': 'Presentation'})
     df = df.rename(columns={'Trial_num': 'TrialNum'})
@@ -470,9 +552,9 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
     df = df.rename(columns={'Bouts_mean': 'BoutsMean'})
     df = df.rename(columns={'ILI_all': 'AllILIs'})
     df = df.rename(columns={'CloseError\n': 'CloseError'})
-    
 
-    
+    #add lickrate too
+    df['LickRate'] = df['AllILIs'].apply(calculate_lick_rates, bout_pause=300)
     #Save dataframe for later use/plotting/analyses
     #timestamped with date
     if save_df==True:
@@ -480,11 +562,3 @@ def create_df(dir_name="ask", info_name='ask', bout_pause=300, min_latency=100, 
 
     return df
 
-
-
-#Work in progress below ---- No documentation yet
-def assign_day(df):
-    #uses a date column to assign a day column
-    for name, group in df.groupby(['Animal']):
-        mindate = min(df['Date'])
-        group['Day'] = [(x).days + 1 for x in (group['Date'] - mindate)]

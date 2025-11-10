@@ -1,7 +1,15 @@
-Metadata-Version: 2.1
-Name: davis-rig-parser
-Version: 0.3.0
+Metadata-Version: 2.4
+Name: davis_rig_parser
+Version: 0.4.0
 Summary: Data parser for the Davis Rig
 Home-page: https://github.com/<your-github-username>/my_module
 Author: Avi Patel, Bradly Stone, Daniel Svedberg
 Author-email: avpnea@gmail.com, dan.ake.svedberg@gmail.com
+Requires-Dist: numpy>=1.18.5
+Requires-Dist: pandas>=1.3.5
+Requires-Dist: easygui>=0.98.1
+Dynamic: author
+Dynamic: author-email
+Dynamic: home-page
+Dynamic: requires-dist
+Dynamic: summary
