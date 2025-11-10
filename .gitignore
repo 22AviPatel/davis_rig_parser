@@ -6,3 +6,4 @@ __pycache__
 .DS_Store
 
 davis_rig_parser/test_local.py
+pypi_token.txt
